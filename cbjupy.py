@@ -13,6 +13,8 @@ except ImportError:
 import results
 import utils
 
+from IPython.display import HTML
+
 
 def run():
     nutshell.parse_arguments([])
@@ -24,6 +26,8 @@ def run():
 
     for cluster_name, cluster_info in r['cluster_infos'].iteritems():
         print cluster_render(cluster_name, cluster_info['cluster_obj'])
+
+    display(HTML("--------------------------------------------------"))
 
     print nutshell.format_results(r['node_results'], r['cluster_results'], 'text')
 
@@ -85,28 +89,40 @@ def cluster_render(name, cluster):
     # Couchbase Server 4.0 introduced services (kv, index, n1ql)
     # check for any CB 4x servers
     if cluster.check_for_ver4_nodes():
-        analyser_result = results.AnalyserResult('Cluster (' + name + ')',
-                                                 sort_table=True)
-        analyser_result.set_padding(2)
-
-        headings = [results.TableHeading('Service'),
-                    results.TableHeading('Total'),
-                    results.TableHeading('Nodes')]
-
-        analyser_result.add_headings(headings)
-
-        services = defaultdict(list)
-
+        service_nodes = defaultdict(list)
         for node in cluster.nodes():
             for service in utils.get_services_of_node(cluster.config, node):
-                services[service].append(node)
+                service_nodes[service].append(node)
 
-        for service in services:
-            if len(services[service]) == 1:
-                analyser_result.add_row([service, 1,
-                                         services[service][0].replace('ns_1@', '', 1)])
-            else:
-                analyser_result.add_row([service, len(services[service]),
-                                         cluster.summarize_name(services[service])])
+        service_names = service_nodes.keys()
+        service_names.sort()
 
-        return analyser_result.render()
+        headings = [results.TableHeading('node'),
+                    results.TableHeading('n#'),
+                    results.TableHeading('services:')]
+        for service_name in service_names:
+            headings.append(results.TableHeading(service_name))
+
+        t = results.AnalyserResult('Cluster' +
+                                   ' (' + name + ')' +
+                                   ' (nodes: ' + str(len(cluster.nodes())) + ')',
+                                   sort_table=True)
+        t.set_padding(2)
+        t.add_headings(headings)
+
+        nodes = cluster.nodes()
+        nodes.sort()
+
+        i = 0
+        for node in nodes:
+            row = [node, i, '']
+            for service_name in service_names:
+                if node in service_nodes[service_name]:
+                    row.append('y')
+                else:
+                    row.append('-')
+
+            t.add_row(row)
+            i += 1
+
+        return t.render()
