@@ -3,9 +3,13 @@ from collections import defaultdict
 import os
 import sys
 
-sys.path.append('/Users/steveyen/nutshell/nutshell')
+try:
+    import nutshell
+except ImportError:
+    sys.path.append(os.path.expanduser('~/nutshell/nutshell')) # used during dev
+    import nutshell
 
-import nutshell
+# more packages from nutshell
 import results
 import utils
 
