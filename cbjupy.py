@@ -24,8 +24,8 @@ def run():
 
     r = process_log_locations(log_locations)
 
-    for cluster_name, cluster_info in r['cluster_infos'].iteritems():
-        print cluster_render(cluster_name, cluster_info['cluster_obj'])
+    for s in render_clusters(r):
+        print s
 
     display(HTML("--------------------------------------------------"))
 
@@ -64,7 +64,8 @@ def process_log_locations(log_locations = None):
     for c in clusters:
         cluster_name = c.summarize_name(c.nodes())
         cluster_results[cluster_name] = nutshell.get_cluster_results(c)
-        cluster_infos[cluster_name] = {'cluster_name': cluster_name, 'cluster_obj': c}
+        cluster_infos[cluster_name] = {'cluster_name': cluster_name,
+                                       'cluster_obj': c}
 
         for n in c.nodes():
             node_infos[n]['cluster_name'] = cluster_name
@@ -83,8 +84,20 @@ def process_log_locations(log_locations = None):
             'cluster_names': cluster_names}
 
 
-def cluster_render(name, cluster):
-    """Summarize the cluster to a table"""
+def render_clusters(r):
+    rv = []
+    for cluster_name, cluster_info in r['cluster_infos'].iteritems():
+        rv.append(render_cluster(r, cluster_name, cluster_info['cluster_obj']))
+    return rv
+
+
+def render_cluster(r, name, cluster):
+    t = results.AnalyserResult('Cluster' +
+                               ' (' + name + ')' +
+                               ' (nodes: ' + str(len(cluster.nodes())) + ')',
+        sort_table=True)
+
+    t.set_padding(2)
 
     # Couchbase Server 4.0 introduced services (kv, index, n1ql)
     # check for any CB 4x servers
@@ -100,14 +113,10 @@ def cluster_render(name, cluster):
         headings = [results.TableHeading('node'),
                     results.TableHeading('n#'),
                     results.TableHeading('services:')]
+
         for service_name in service_names:
             headings.append(results.TableHeading(service_name))
 
-        t = results.AnalyserResult('Cluster' +
-                                   ' (' + name + ')' +
-                                   ' (nodes: ' + str(len(cluster.nodes())) + ')',
-                                   sort_table=True)
-        t.set_padding(2)
         t.add_headings(headings)
 
         nodes = cluster.nodes()
@@ -125,4 +134,4 @@ def cluster_render(name, cluster):
             t.add_row(row)
             i += 1
 
-        return t.render()
+    return t.render()
