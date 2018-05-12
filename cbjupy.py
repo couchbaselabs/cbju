@@ -13,23 +13,35 @@ except ImportError:
 import results
 import utils
 
-from IPython.display import HTML
 
+def run(nutshell_args=[], log_locations=None):
+    nutshell.parse_arguments(nutshell_args)
 
-def run():
-    nutshell.parse_arguments([])
-
-    log_locations = [f for f in os.listdir('.')
-                     if not os.path.isfile(f) and f[0] != '.']
+    if log_locations is None:
+        log_locations = [f for f in os.listdir('.')
+                         if not os.path.isfile(f) and f[0] != '.']
 
     r = process_log_locations(log_locations)
 
     for s in render_clusters(r):
         print s
 
-    display(HTML("--------------------------------------------------"))
+    print nutshell.format_results(r['node_results'],
+                                  r['cluster_results'],
+                                  'text')
 
-    print nutshell.format_results(r['node_results'], r['cluster_results'], 'text')
+    try:
+        # throws NameError if not running in ipython
+        __IPYTHON__
+
+        import IPython.core.getipython
+        ipy = IPython.core.getipython.get_ipython()
+        ipy.push({'r': r})
+        ipy.push(r)
+
+        return
+    except NameError:
+        pass
 
     return r
 
