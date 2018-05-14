@@ -23,7 +23,9 @@ def run(nutshell_args=[], log_locations=None):
 
     r = process_log_locations(log_locations)
 
-    for s in render_clusters(r):
+    gvars = {}
+
+    for s in render_clusters(r, gvars):
         print s
 
     print nutshell.format_results(r['node_results'],
@@ -38,6 +40,7 @@ def run(nutshell_args=[], log_locations=None):
         ipy = IPython.core.getipython.get_ipython()
         ipy.push({'r': r})
         ipy.push(r)
+        ipy.push(gvars)
 
         return
     except NameError:
@@ -96,14 +99,17 @@ def process_log_locations(log_locations = None):
             'cluster_names': cluster_names}
 
 
-def render_clusters(r):
+def render_clusters(r, gvars={}):
     rv = []
     for cluster_name, cluster_info in r['cluster_infos'].iteritems():
-        rv.append(render_cluster(r, cluster_name, cluster_info['cluster_obj']))
+        rv.append(render_cluster(r, cluster_name, cluster_info['cluster_obj'], gvars=gvars))
     return rv
 
 
-def render_cluster(r, name, cluster):
+def render_cluster(r, name, cluster, gvars={}):
+    if 'nAll' not in gvars:
+        gvars['nAll'] = []
+
     t = results.AnalyserResult('Cluster' +
                                ' (' + name + ')' +
                                ' (nodes: ' + str(len(cluster.nodes())) + ')',
@@ -136,10 +142,24 @@ def render_cluster(r, name, cluster):
 
         i = 0
         for node in nodes:
-            row = [node, i, '']
+            # add entry like 'n0' into gvars
+            nvar = 'n' + str(len(gvars['nAll']))
+            gvars[nvar] = node
+            gvars['nAll'].append(nvar)
+
+            row = [node, nvar, '']
             for service_name in service_names:
+                service_name_All = service_name + 'All'
+                if service_name_All not in gvars:
+                    gvars[service_name_All] = []
+
                 if node in service_nodes[service_name]:
                     row.append('y')
+
+                    # add entry like 'kv0' or 'fts0' into gvars
+                    snvar = service_name + str(len(gvars[service_name_All]))
+                    gvars[snvar] = node
+                    gvars[service_name_All].append(snvar)
                 else:
                     row.append('-')
 
